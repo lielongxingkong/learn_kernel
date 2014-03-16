@@ -2,6 +2,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
+#include <linux/delay.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("zhaozhenlong");
@@ -11,6 +12,9 @@ MODULE_DESCRIPTION("It's a test module.");
 struct task_struct *threads[MAX_THREADS];
 static int thread_do(void *data){
 	printk("run...\n");
+	while(!kthread_should_stop()){
+		msleep(10);
+	}
 	return 0;
 }
 
@@ -18,7 +22,7 @@ static int create_threads(void){
 	int i;
 	for(i = 0; i < MAX_THREADS; i++){
 		struct task_struct *thread;
-		thread = kthread_create(thread_do, NULL, "thread-%d", i);
+		thread = kthread_run(thread_do, NULL, "thread-%d", i);
 		if(IS_ERR(thread))
 			return -1;
 		threads[i] = thread;
