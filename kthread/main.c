@@ -3,16 +3,30 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/spinlock_types.h>
+#include <linux/spinlock.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("zhaozhenlong");
 MODULE_DESCRIPTION("It's a test module.");
+
+static DEFINE_SPINLOCK(threads_lock);
+struct our_data{
+	int cnt1;
+	int cnt2;
+};
+
+static struct our_data mydata;
 
 #define MAX_THREADS	10
 struct task_struct *threads[MAX_THREADS];
 static int thread_do(void *data){
 	printk("run...\n");
 	while(!kthread_should_stop()){
+		spin_lock(&threads_lock);
+		mydata.cnt1++;
+		mydata.cnt2 += 10;
+		spin_unlock(&threads_lock);
 		msleep(10);
 	}
 	return 0;
@@ -40,6 +54,7 @@ static int cleanup_threads(void){
 
 static __init int minit(void){
 	printk("call %s\n", __FUNCTION__);
+	printk("init mydata: cnt1:%d, cnt2:%d\n", mydata.cnt1, mydata.cnt2);
 	if(create_threads())
 		goto err;
 	return 0;
@@ -50,6 +65,7 @@ err:
 
 static __exit void mexit(void){
 	printk("call %s\n", __FUNCTION__);
+	printk("exit mydata: cnt1:%d, cnt2:%d\n", mydata.cnt1, mydata.cnt2);
 	cleanup_threads();
 }
 module_init(minit)
