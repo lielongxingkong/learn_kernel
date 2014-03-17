@@ -30,7 +30,7 @@ struct our_data{
 static struct our_data mydata;
 
 struct task_struct *threads[MAX_THREADS];
-DEFINE_MUTEX(mut);
+static DEFINE_MUTEX(mut);
 
 static void reader_do(void){
 	return;
