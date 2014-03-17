@@ -28,6 +28,9 @@ static void set_reader_number(int reader){
 struct our_data{
 	int cnt1;
 	int cnt2;
+#ifdef CALL_RCU
+	struct rcu_head rhead;
+#endif 
 };
 
 static struct our_data mydata;
@@ -44,6 +47,14 @@ static void reader_do(void){
 	rcu_read_unlock();
 }
 
+#ifdef CALL_RCU
+static void rcu_free(struct rcu_head *head){
+	struct our_data *data;
+	data = container_of(head, struct our_data, rhead);
+	kfree(data);
+}
+#endif
+
 static void writer_do(void){
 	struct our_data *data, *tmp = pmydata;
 	
@@ -56,8 +67,12 @@ static void writer_do(void){
 	
 	rcu_assign_pointer(pmydata, data);
 	if (tmp != &mydata){
+#ifdef CALL_RCU
+		call_rcu(&tmp->rhead, rcu_free); 
+#else
 		synchronize_rcu();
 		kfree(tmp);
+#endif 
 	}
 }
 
@@ -71,7 +86,7 @@ static int thread_do(void *data){
 			reader_do();
 		else 
 			writer_do();
-		msleep(10);
+		msleep(100);
 	}
 	return 0;
 }
@@ -97,7 +112,12 @@ static int cleanup_threads(void){
 }
 
 static __init int minit(void){
-	printk("call %s\n", __FUNCTION__);
+#ifdef CALL_RCU
+	int call_rcu = 1;
+#else
+	int call_rcu = 0;
+#endif
+	printk("call %s\n", call_rcu? "call rcu" : "sync rcu");
 	printk("init mydata: cnt1:%d, cnt2:%d\n", mydata.cnt1, mydata.cnt2);
 	set_reader_number(9);
 	if(create_threads())
